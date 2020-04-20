@@ -1,0 +1,8 @@
+
+# Created by https://www.gitignore.io/api/java,maven,java-web,intellij
+# Edit at https://www.gitignore.io/?templates=java,maven,java-web,intellij
+
+.idea/
+*.iml
+*.ipr
+target/
