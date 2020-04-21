@@ -61,7 +61,9 @@ public class SftpClient {
   }
 
   public void disconnect() {
-    jschSession.get().disconnect();
+    if (jschSession.get() != null) {
+      jschSession.get().disconnect();
+    }
     jschSession.remove();
   }
 
@@ -224,11 +226,13 @@ public class SftpClient {
 
   @FunctionalInterface
   private interface FileOp {
+
     public void process(ChannelSftp channel) throws SftpException, JSchException;
   }
 
   @FunctionalInterface
   private interface ReturningFileOp<T> {
+
     public T process(ChannelSftp channel) throws SftpException, JSchException;
   }
 

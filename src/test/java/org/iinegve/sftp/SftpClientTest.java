@@ -3,6 +3,7 @@ package org.iinegve.sftp;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.stefanbirkner.fakesftpserver.rule.FakeSftpServerRule;
@@ -216,6 +217,11 @@ public class SftpClientTest {
 
     List<String> after = sftp.listDirectory("/bulk-delete-dir");
     assertThat(after).isEmpty();
+  }
+
+  @Test
+  public void disconnect_without_connect_does_not_throw() {
+    assertThatCode(workingSftpClient()::disconnect).doesNotThrowAnyException();
   }
 
   @Test
