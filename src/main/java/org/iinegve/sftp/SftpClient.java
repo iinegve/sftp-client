@@ -8,15 +8,17 @@ import com.jcraft.jsch.CustomJSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
-import com.jcraft.jsch.UncheckedJSchException;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Properties;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,14 +29,20 @@ public class SftpClient {
   private final String host;
   private final int port;
   private final String username;
-  private final String privateKey;
+
+  private final CustomJSch jsch;
+  private final Properties config;
   private final ThreadLocal<Session> jschSession;
 
-  private SftpClient(String host, int port, String username, String privateKey) {
+  private SftpClient(String host, int port, String username, String privateKey, CustomJSch jsch) {
     this.host = host;
     this.port = port;
     this.username = username;
-    this.privateKey = privateKey;
+
+    this.jsch = jsch;
+    jsch.addRsaIdentity(privateKey);
+    this.config = new Properties();
+    config.put("StrictHostKeyChecking", "no");
     this.jschSession = new ThreadLocal<>();
   }
 
@@ -47,16 +55,12 @@ public class SftpClient {
       if (isConnected()) {
         disconnect();
       }
-      CustomJSch jsch = new CustomJSch();
-      jsch.addRsaIdentity(privateKey);
       Session session = jsch.getSession(username, host, port);
-      java.util.Properties config = new java.util.Properties();
-      config.put("StrictHostKeyChecking", "no");
       session.setConfig(config);
       session.connect();
       jschSession.set(session);
     } catch (JSchException e) {
-      throw new UncheckedJSchException(e);
+      throw new SftpClientException(e);
     }
   }
 
@@ -131,7 +135,8 @@ public class SftpClient {
       ) {
         in.transferTo(out);
       } catch (IOException e) {
-        throw new UncheckedIOException(e);
+        log.error("Cannot download file", e);
+        throw new SftpClientException(e);
       }
       return new File(localFileName);
     });
@@ -172,10 +177,13 @@ public class SftpClient {
    * @param remoteFiles collection of relative paths that have to be deleted
    */
   public void delete(List<String> remoteFiles) {
+    Set<String> toBeDeletedFiles = new HashSet<>(remoteFiles);
     doInSftp(channel -> {
-      log.debug("Deleting [{}] files", remoteFiles.size());
-      for (String file : remoteFiles) {
-        channel.rm(file);
+      log.debug("Deleting [{}] files", toBeDeletedFiles.size());
+      Iterator<String> it = toBeDeletedFiles.iterator();
+      while (it.hasNext()) {
+        channel.rm(it.next());
+        it.remove();
       }
       log.debug("Files successfully deleted");
     });
@@ -191,22 +199,45 @@ public class SftpClient {
    */
   private <T> T doInSftp(ReturningFileOp<T> op) {
     ChannelSftp channel = null;
+    if (!isConnected()) {
+      connect();
+    }
+
     try {
-      if (!isConnected()) {
-        connect();
+      channel = reconnectChannelOnException();
+      int retries = 2;
+      SftpClientException retryEx = null;
+      while (retries > 0) {
+        try {
+          return op.process(channel);
+        } catch (Exception ex) {
+          retries--;
+          log.error("Caught exception [{}], retrying", ex.getMessage());
+          retryEx = new SftpClientException(ex);
+        }
       }
-
-      channel = (ChannelSftp) jschSession.get().openChannel("sftp");
-      channel.connect();
-
-      return op.process(channel);
-    } catch (SftpException | JSchException ex) {
+      throw retryEx;
+    } catch (JSchException ex) {
       disconnect();
-      throw new UncheckedJSchException(ex);
+      throw new SftpClientException(ex);
     } finally {
       if (channel != null) {
         channel.disconnect();
       }
+    }
+  }
+
+  private ChannelSftp reconnectChannelOnException() throws JSchException {
+    try {
+      ChannelSftp channel = (ChannelSftp) jschSession.get().openChannel("sftp");
+      channel.connect();
+      return channel;
+    } catch (Exception e) {
+      log.warn("Trying to reconnect because of [{}]", e.getMessage());
+      connect();
+      ChannelSftp channel = (ChannelSftp) jschSession.get().openChannel("sftp");
+      channel.connect();
+      return channel;
     }
   }
 
@@ -226,23 +257,21 @@ public class SftpClient {
 
   @FunctionalInterface
   private interface FileOp {
-
-    public void process(ChannelSftp channel) throws SftpException, JSchException;
+    public void process(ChannelSftp channel) throws SftpException;
   }
 
   @FunctionalInterface
   private interface ReturningFileOp<T> {
-
-    public T process(ChannelSftp channel) throws SftpException, JSchException;
+    public T process(ChannelSftp channel) throws SftpException;
   }
 
 
   public static final class SftpClientBuilder {
-
     private String host;
     private int port;
     private String username;
     private String privateKey;
+    private CustomJSch jsch;
 
     public SftpClientBuilder host(String host) {
       this.host = host;
@@ -264,8 +293,16 @@ public class SftpClient {
       return this;
     }
 
+    public SftpClientBuilder jsch(CustomJSch jsch) {
+      this.jsch = jsch;
+      return this;
+    }
+
     public SftpClient build() {
-      return new SftpClient(host, port, username, privateKey);
+      if (jsch == null) {
+        jsch = new CustomJSch();
+      }
+      return new SftpClient(host, port, username, privateKey, jsch);
     }
   }
 }

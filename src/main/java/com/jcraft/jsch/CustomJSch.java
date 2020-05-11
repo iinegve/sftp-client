@@ -1,10 +1,18 @@
 package com.jcraft.jsch;
 
+import org.slf4j.LoggerFactory;
+
 /**
- * Customized version of JSch that allow providing identity file from the in memory string without
- * actually creating a temporary file.
+ * Customized version of JSch that allows providing identity file from in memory string without
+ * creating a temporary file.
  */
 public class CustomJSch extends JSch {
+
+  private static final org.slf4j.Logger log = LoggerFactory.getLogger("org.iinegve.CustomJSch");
+
+  public CustomJSch() {
+    setLogger(new SimpleLogger());
+  }
 
   /**
    * Adds RSA identity without having a file.
@@ -18,6 +26,30 @@ public class CustomJSch extends JSch {
       addIdentity(identity, null);
     } catch (Exception ex) {
       throw new UncheckedJSchException(ex);
+    }
+  }
+
+
+  private static class SimpleLogger implements com.jcraft.jsch.Logger {
+
+    @Override
+    public boolean isEnabled(int level) {
+      return true;
+    }
+
+    @Override
+    public void log(int level, String message) {
+      if (level == DEBUG) {
+        log.debug(message);
+      } else if (level == INFO) {
+        log.info(message);
+      } else if (level == WARN) {
+        log.warn(message);
+      } else if (level == ERROR) {
+        log.error(message);
+      } else if (level == FATAL) {
+        log.error(message);
+      }
     }
   }
 }

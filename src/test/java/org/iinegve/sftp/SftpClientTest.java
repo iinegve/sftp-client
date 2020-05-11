@@ -5,16 +5,28 @@ import static java.util.stream.Collectors.toList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.iinegve.sftp.SftpClient.sftpClient;
+import static org.iinegve.sftp.Util.list;
 
 import com.github.stefanbirkner.fakesftpserver.rule.FakeSftpServerRule;
+import com.jcraft.jsch.Channel;
+import com.jcraft.jsch.CustomJSch;
+import com.jcraft.jsch.DummyChannelExec;
+import com.jcraft.jsch.DummyChannelSftp;
+import com.jcraft.jsch.DummySession;
+import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
+import com.jcraft.jsch.SftpException;
+import com.jcraft.jsch.ThrowingInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.SneakyThrows;
 import org.junit.Before;
@@ -57,14 +69,27 @@ public class SftpClientTest {
 
   @Test
   public void disconnect_on_reconnection__when_already_connected() {
-    SftpClient sftp = workingSftpClient();
-    sftp.connect();
-    Session jschSessionBefore = readJschSession(sftp);
-    sftp.connect();
-    Session jschSessionAfter = readJschSession(sftp);
+    int[] connectCount = {0};
+    int[] disconnectCount = {0};
+    CustomJSch jsch = new CustomJSch() {
+      @Override
+      public Session getSession(String username, String host, int port) throws JSchException {
+        return new DummySession() {
+          @Override public boolean isConnected() { return true; }
+          @Override public void connect() { connectCount[0]++; }
+          @Override public void disconnect() { disconnectCount[0]++; }
+        };
+      }
+    };
 
-    assertThat(jschSessionBefore).isNotSameAs(jschSessionAfter);
-    assertThat(jschSessionBefore.isConnected()).isFalse();
+    SftpClient sftp = sftpClient().host("localhost").port(2000).username("user")
+        .privateKey(content("files/private-key")).jsch(jsch).build();
+
+    sftp.connect(); // first time session is null inside, connect that
+    sftp.connect(); // second time it's connected, then it has to be disconnected
+
+    assertThat(connectCount[0]).isEqualTo(2);
+    assertThat(disconnectCount[0]).isEqualTo(1);
   }
 
   @SuppressWarnings("unchecked")
@@ -168,8 +193,7 @@ public class SftpClientTest {
     sftp.connect();
 
     File fileInRoot = sftp.download("/file-in-root", new File(tempDir, "file-in-root"));
-    File firstFile = sftp
-        .download("list-files/sublist-files/first-file", new File(tempDir, "first-file"));
+    File firstFile = sftp.download("list-files/sublist-files/first-file", new File(tempDir, "first-file"));
 
     assertThat(tempDir.list()).containsOnly("file-in-root", "first-file");
     assertThat(content(fileInRoot)).isEqualTo("File in sftp root");
@@ -220,6 +244,68 @@ public class SftpClientTest {
   }
 
   @Test
+  public void repeatable_bulk_delete_files_do_not_delete_the_same_files() {
+    List<String> deletedFiles = new ArrayList<>();
+    CustomJSch jsch = new CustomJSch() {
+      @Override
+      public Session getSession(String username, String host, int port) throws JSchException {
+        return new DummySession() {
+          @Override
+          public Channel openChannel(String type) {
+            return new DummyChannelSftp() {
+              @Override
+              public void rm(String path) throws SftpException {
+                if (path.equals("4") && !deletedFiles.contains("4")) {
+                  deletedFiles.add(path);
+                  throw new SftpException(1, "Cannot drop 4th file");
+                }
+                deletedFiles.add(path);
+              }
+            };
+          }
+        };
+      }
+    };
+
+    SftpClient sftp = sftpClient().host("localhost").port(2007).username("user")
+        .privateKey(content("files/private-key")).jsch(jsch).build();
+
+    sftp.connect();
+    sftp.delete(list("1", "2", "3", "4", "5", "6"));
+    assertThat(deletedFiles).containsOnly("1", "2", "3", "4", "4", "5", "6");
+  }
+
+  @Test
+  public void retry_operations() {
+    int[] getCount = {0};
+    CustomJSch jsch = new CustomJSch() {
+      @Override
+      public Session getSession(String username, String host, int port) throws JSchException {
+        return new DummySession() {
+          @Override
+          public Channel openChannel(String type) {
+            return new DummyChannelSftp() {
+              @Override
+              public InputStream get(String src) {
+                getCount[0]++;
+                return new ThrowingInputStream();
+              }
+            };
+          }
+        };
+      }
+    };
+
+    SftpClient sftp = sftpClient().host("localhost").port(2007).username("user")
+        .privateKey(content("files/private-key")).jsch(jsch).build();
+
+    sftp.connect();
+    assertThatThrownBy(() -> sftp.download("remote-path", new File("target")))
+        .isExactlyInstanceOf(SftpClientException.class);
+    assertThat(getCount[0]).isGreaterThan(1);
+  }
+
+  @Test
   public void disconnect_without_connect_does_not_throw() {
     assertThatCode(workingSftpClient()::disconnect).doesNotThrowAnyException();
   }
@@ -241,9 +327,47 @@ public class SftpClientTest {
     assertThat(after).isEmpty();
   }
 
+  @Test
+  public void reconnect_session__when_open_channel_throws_exception() {
+    int[] connected = {0};
+    CustomJSch jsch = new CustomJSch() {
+      @Override
+      public Session getSession(String username, String host, int port) throws JSchException {
+        return new DummySession() {
+          @Override
+          public void connect() {
+            connected[0]++;
+          }
+
+          @Override
+          public Channel openChannel(String type) {
+            if (type.equals("sftp")) {
+              return new DummyChannelSftp() {
+                @Override
+                public void connect() throws JSchException {
+                  if (connected[0] == 1) throw new JSchException("Suppose to be thrown");
+                }
+              };
+            } else if (type.equals("exec")) {
+              return new DummyChannelExec();
+            } else {
+              return null;
+            }
+          }
+        };
+      }
+    };
+
+    SftpClient sftp = sftpClient().privateKey(content("files/private-key")).jsch(jsch).build();
+    sftp.connect();
+
+    sftp.listDirectory(".");
+
+    assertThat(connected[0]).isEqualTo(2);
+  }
 
   private static SftpClient workingSftpClient() {
-    return SftpClient.sftpClient()
+    return sftpClient()
         .host("localhost")
         .port(port)
         .username("user")

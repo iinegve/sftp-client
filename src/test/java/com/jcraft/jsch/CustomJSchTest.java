@@ -12,7 +12,7 @@ public class CustomJSchTest {
         .doesNotThrowAnyException();
   }
 
-  private String privateKey = ""
+  private static final String privateKey = ""
       + "-----BEGIN RSA PRIVATE KEY-----\n"
       + "MIICXAIBAAKBgQCqGKukO1De7zhZj6+H0qtjTkVxwTCpvKe4eCZ0FPqri0cb2JZfXJ/DgYSF6vUp"
       + "wmJG8wVQZKjeGcjDOL5UlsuusFncCzWBQ7RKNUSesmQRMSGkVb1/3j+skZ6UtW+5u09lHNsj6tQ5"
