@@ -92,17 +92,6 @@ public class SftpClientTest {
     assertThat(disconnectCount[0]).isEqualTo(1);
   }
 
-  @SuppressWarnings("unchecked")
-  private Session readJschSession(SftpClient sftp) {
-    try {
-      Field f = SftpClient.class.getDeclaredField("jschSession");
-      f.setAccessible(true);
-      return ((ThreadLocal<Session>) f.get(sftp)).get();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   @Test
   public void implicitly_connect_to_sftp_server__when_not_connected() {
     SftpClient sftp = workingSftpClient();
