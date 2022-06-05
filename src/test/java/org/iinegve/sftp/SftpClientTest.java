@@ -83,11 +83,10 @@ public class SftpClientTest {
       }
     };
 
-    SftpClient sftp = sftpClient().host("localhost").port(2000).username("user")
-      .privateKey(content("files/private-key")).jsch(jsch).build();
+    SftpClient sftp = sftpClientBuilder().jsch(jsch).build();
 
     sftp.connect(); // first time session is null inside, connect that
-    sftp.connect(); // second time it's connected, then it has to be disconnected
+    sftp.connect(); // second time it's already connected, then it has to be disconnected
 
     assertThat(connectCount[0]).isEqualTo(2);
     assertThat(disconnectCount[0]).isEqualTo(1);
@@ -257,16 +256,19 @@ public class SftpClientTest {
       }
     };
 
-    SftpClient sftp = sftpClient().host("localhost").port(2007).username("user")
-      .privateKey(content("files/private-key")).jsch(jsch).build();
+    SftpClient sftp = sftpClientBuilder()
+      .port(2007)
+      .jsch(jsch)
+      .build();
 
     sftp.connect();
     sftp.delete(list("1", "2", "3", "4", "5", "6"));
+
     assertThat(deletedFiles).containsOnly("1", "2", "3", "4", "4", "5", "6");
   }
 
   @Test
-  public void retry_operations() {
+  public void retry_operations_at_least_once() {
     int[] getCount = {0};
     CustomJSch jsch = new CustomJSch() {
       @Override
@@ -286,10 +288,13 @@ public class SftpClientTest {
       }
     };
 
-    SftpClient sftp = sftpClient().host("localhost").port(2007).username("user")
-      .privateKey(content("files/private-key")).jsch(jsch).build();
+    SftpClient sftp = sftpClientBuilder()
+      .port(2007)
+      .jsch(jsch)
+      .build();
 
     sftp.connect();
+
     assertThatThrownBy(() -> sftp.download("remote-path", new File("target")))
       .isExactlyInstanceOf(SftpClientException.class);
     assertThat(getCount[0]).isGreaterThan(1);
@@ -348,7 +353,10 @@ public class SftpClientTest {
       }
     };
 
-    SftpClient sftp = sftpClient().privateKey(content("files/private-key")).jsch(jsch).build();
+    SftpClient sftp = sftpClientBuilder()
+      .port(0)
+      .jsch(jsch)
+      .build();
     sftp.connect();
 
     sftp.listDirectory(".");
@@ -357,12 +365,15 @@ public class SftpClientTest {
   }
 
   private static SftpClient workingSftpClient() {
+    return sftpClientBuilder().build();
+  }
+
+  private static SftpClientBuilder sftpClientBuilder() {
     return sftpClient()
       .host("localhost")
       .port(port)
       .username("user")
-      .privateKey(content("files/private-key"))
-      .build();
+      .privateKey(content("files/private-key"));
   }
 
   @SneakyThrows
