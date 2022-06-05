@@ -306,7 +306,7 @@ public class SftpClientTest {
   }
 
   @Test
-  public void check_sftp_client_thread_safety() throws IOException {
+  public void check_sftp_client_individual_files_deletion_in_parallel() throws IOException {
     sftpServer.createDirectory("/sub-sub-dir");
     String content = new String(content("files/file-in-root"));
     for (int i = 0; i < 200; i++) {
@@ -362,6 +362,15 @@ public class SftpClientTest {
     sftp.listDirectory(".");
 
     assertThat(connected[0]).isEqualTo(2);
+  }
+
+  @Test
+  public void creating_sftpClient_throws__when_privateKey_is_null_or_empty() {
+    assertThatThrownBy(() -> sftpClientBuilder().privateKey(null).build())
+      .isExactlyInstanceOf(IllegalArgumentException.class);
+
+    assertThatThrownBy(() -> sftpClientBuilder().privateKey(new byte[]{}).build())
+      .isExactlyInstanceOf(IllegalArgumentException.class);
   }
 
   private static SftpClient workingSftpClient() {

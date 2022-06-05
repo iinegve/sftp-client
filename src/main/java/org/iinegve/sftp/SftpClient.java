@@ -35,13 +35,12 @@ public class SftpClient {
   private final Properties config;
   private final ThreadLocal<Session> jschSession;
 
-  SftpClient(String host, int port, String username, byte[] privateKey, CustomJSch jsch) {
+  SftpClient(String host, int port, String username, CustomJSch jsch) {
     this.host = host;
     this.port = port;
     this.username = username;
 
     this.jsch = jsch;
-    jsch.addRsaIdentity(privateKey);
     this.config = new Properties();
     config.put("StrictHostKeyChecking", "no");
     this.jschSession = new ThreadLocal<>();

@@ -36,9 +36,15 @@ public final class SftpClientBuilder {
   }
 
   public SftpClient build() {
+    if (privateKey == null || privateKey.length == 0) {
+      throw new IllegalArgumentException("Private key must be set");
+    }
+
     if (jsch == null) {
       jsch = new CustomJSch();
     }
-    return new SftpClient(host, port, username, privateKey, jsch);
+    jsch.addRsaIdentity(privateKey);
+
+    return new SftpClient(host, port, username, jsch);
   }
 }
