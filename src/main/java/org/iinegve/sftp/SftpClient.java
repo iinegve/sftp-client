@@ -78,10 +78,10 @@ public class SftpClient {
 
   /**
    * Uploads file to sftp
-   *
-   * @param file file on local machine to upload
+   * <p>
+   * @param file      file on local machine to upload
    * @param remoteDir remote directory where to upload. Must not be null or empty, use . for current
-   * directory.
+   *                  directory.
    */
   public void upload(File file, String remoteDir) {
     if (remoteDir == null || remoteDir.isEmpty()) {
@@ -104,10 +104,10 @@ public class SftpClient {
       log.debug("Listing directory [{}]", remoteDir);
       List<LsEntry> ls = new ArrayList<>(channel.ls(remoteDir));
       List<String> filenames = ls.stream()
-          .map(LsEntry::getFilename)
-          .filter(fn -> !fn.equals("."))
-          .filter(fn -> !fn.equals(".."))
-          .collect(toList());
+        .map(LsEntry::getFilename)
+        .filter(fn -> !fn.equals("."))
+        .filter(fn -> !fn.equals(".."))
+        .collect(toList());
       log.debug("Found: [{}]", filenames);
       return filenames;
     });
@@ -115,24 +115,24 @@ public class SftpClient {
 
   /**
    * Downloads file to either a given directory or a given file
-   *
-   * @param remoteFilePath path to a file on sftp
+   * <p>
+   * @param remoteFilePath   path to a file on sftp
    * @param localDestination path to either a directory to put downloaded file or a file to put
-   * downloaded file into
+   *                         downloaded file into
    */
   public File download(String remoteFilePath, File localDestination) {
     return doInSftp(channel -> {
       int remoteFileNameIndex = remoteFilePath.lastIndexOf('/');
       String remoteFileName = remoteFileNameIndex == -1
-          ? remoteFilePath : remoteFilePath.substring(remoteFileNameIndex + 1);
+        ? remoteFilePath : remoteFilePath.substring(remoteFileNameIndex + 1);
 
       String localFileName = localDestination.isDirectory()
-          ? localDestination + File.separator + remoteFileName
-          : localDestination.getAbsolutePath();
+        ? localDestination + File.separator + remoteFileName
+        : localDestination.getAbsolutePath();
       log.debug("Downloading remote file [{}] into local [{}]", remoteFileName, localFileName);
 
       try (InputStream in = channel.get(remoteFilePath);
-          OutputStream out = new FileOutputStream(new File(localFileName))
+           OutputStream out = new FileOutputStream(new File(localFileName))
       ) {
         in.transferTo(out);
       } catch (IOException e) {
@@ -145,9 +145,9 @@ public class SftpClient {
 
   /**
    * Move file on sftp from one location to another
-   *
+   * <p>
    * @param remoteFileFrom path to file to move
-   * @param remoteFileTo path to a file where to move it
+   * @param remoteFileTo   path to a file where to move it
    */
   public void move(String remoteFileFrom, String remoteFileTo) {
     doInSftp(channel -> {
@@ -158,7 +158,7 @@ public class SftpClient {
 
   /**
    * Deletes a file.
-   *
+   * <p>
    * Note: doesn't delete directory.
    *
    * @param remoteFile relative path to designate file to be deleted
@@ -172,7 +172,7 @@ public class SftpClient {
 
   /**
    * Deletes files in bulk.
-   *
+   * <p>
    * Note: doesn't delete directories.
    *
    * @param remoteFiles collection of relative paths that have to be deleted
@@ -192,9 +192,9 @@ public class SftpClient {
 
   /**
    * Method that wraps simple operation to keep all the low level burden with opening and closing
-   * the channel in here leaving actual operation to where it belong
-   *
-   * @param op operation to do in sftp
+   * the channel in here leaving actual operation to where it belongs.
+   * <p>
+   * @param op  operation to do in sftp
    * @param <T> type of value that's going to be returned as a result of operation
    * @return result of operation, for example list of file names
    */
@@ -246,7 +246,7 @@ public class SftpClient {
    * The operation doesn't have result, thus doesn't return anything, but it's convenient to have
    * it, because it helps avoid having return statement in all the places, where this operation is
    * used.
-   *
+   * <p>
    * @param op operation to do in sftp
    */
   private void doInSftp(FileOp op) {

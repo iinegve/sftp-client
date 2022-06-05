@@ -16,7 +16,7 @@ public class CustomJSch extends JSch {
 
   /**
    * Adds RSA identity without having a file.
-   *
+   * <p>
    * @param privateKey byte array that contains private key
    * @throws UncheckedJSchException in case anything happens
    */

@@ -84,7 +84,7 @@ public class SftpClientTest {
     };
 
     SftpClient sftp = sftpClient().host("localhost").port(2000).username("user")
-        .privateKey(content("files/private-key")).jsch(jsch).build();
+      .privateKey(content("files/private-key")).jsch(jsch).build();
 
     sftp.connect(); // first time session is null inside, connect that
     sftp.connect(); // second time it's connected, then it has to be disconnected
@@ -100,7 +100,7 @@ public class SftpClientTest {
     List<String> filenames = sftp.listDirectory(".");
 
     assertThat(filenames)
-        .containsOnly("file-in-root", "subdir", "list-files", "to-move", "home", "to-delete");
+      .containsOnly("file-in-root", "subdir", "list-files", "to-move", "home", "to-delete");
   }
 
   @Test
@@ -131,10 +131,10 @@ public class SftpClientTest {
   @Test
   public void upload_file_throws_exception__when_remote_directory_null_or_empty() {
     assertThatThrownBy(() -> workingSftpClient().upload(new File(uri("files/d-file")), ""))
-        .isExactlyInstanceOf(IllegalArgumentException.class);
+      .isExactlyInstanceOf(IllegalArgumentException.class);
 
     assertThatThrownBy(() -> workingSftpClient().upload(new File(uri("files/d-file")), null))
-        .isExactlyInstanceOf(IllegalArgumentException.class);
+      .isExactlyInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -150,10 +150,10 @@ public class SftpClientTest {
   @Test
   public void list_directory_throws__when_directory_null_or_empty() {
     assertThatThrownBy(() -> workingSftpClient().listDirectory(""))
-        .isExactlyInstanceOf(IllegalArgumentException.class);
+      .isExactlyInstanceOf(IllegalArgumentException.class);
 
     assertThatThrownBy(() -> workingSftpClient().listDirectory(""))
-        .isExactlyInstanceOf(IllegalArgumentException.class);
+      .isExactlyInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -196,7 +196,7 @@ public class SftpClientTest {
     sftp.connect();
 
     assertThat(sftp.listDirectory("."))
-        .containsOnly("file-in-root", "subdir", "list-files", "to-move", "home", "to-delete");
+      .containsOnly("file-in-root", "subdir", "list-files", "to-move", "home", "to-delete");
     assertThat(sftp.listDirectory("to-move")).isEmpty();
 
     sftp.move("file-in-root", "to-move/file-in-to-move");
@@ -258,7 +258,7 @@ public class SftpClientTest {
     };
 
     SftpClient sftp = sftpClient().host("localhost").port(2007).username("user")
-        .privateKey(content("files/private-key")).jsch(jsch).build();
+      .privateKey(content("files/private-key")).jsch(jsch).build();
 
     sftp.connect();
     sftp.delete(list("1", "2", "3", "4", "5", "6"));
@@ -287,11 +287,11 @@ public class SftpClientTest {
     };
 
     SftpClient sftp = sftpClient().host("localhost").port(2007).username("user")
-        .privateKey(content("files/private-key")).jsch(jsch).build();
+      .privateKey(content("files/private-key")).jsch(jsch).build();
 
     sftp.connect();
     assertThatThrownBy(() -> sftp.download("remote-path", new File("target")))
-        .isExactlyInstanceOf(SftpClientException.class);
+      .isExactlyInstanceOf(SftpClientException.class);
     assertThat(getCount[0]).isGreaterThan(1);
   }
 
@@ -311,7 +311,7 @@ public class SftpClientTest {
 
     List<String> before = sftp.listDirectory("/sub-sub-dir");
     before.stream().parallel()
-        .forEach(filename -> sftp.delete("sub-sub-dir/" + filename));
+      .forEach(filename -> sftp.delete("sub-sub-dir/" + filename));
 
     List<String> after = sftp.listDirectory("/sub-sub-dir");
     assertThat(after).isEmpty();
@@ -358,11 +358,11 @@ public class SftpClientTest {
 
   private static SftpClient workingSftpClient() {
     return sftpClient()
-        .host("localhost")
-        .port(port)
-        .username("user")
-        .privateKey(content("files/private-key"))
-        .build();
+      .host("localhost")
+      .port(port)
+      .username("user")
+      .privateKey(content("files/private-key"))
+      .build();
   }
 
   @SneakyThrows
