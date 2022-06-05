@@ -1,13 +1,5 @@
 package org.iinegve.sftp;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.stream.Collectors.toList;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.iinegve.sftp.SftpClient.sftpClient;
-import static org.iinegve.sftp.Util.list;
-
 import com.github.stefanbirkner.fakesftpserver.rule.FakeSftpServerRule;
 import com.jcraft.jsch.Channel;
 import com.jcraft.jsch.CustomJSch;
@@ -18,20 +10,29 @@ import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
 import com.jcraft.jsch.ThrowingInputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.reflect.Field;
-import java.net.URI;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.SneakyThrows;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.Collectors.toList;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.iinegve.sftp.SftpClient.sftpClient;
+import static org.iinegve.sftp.Util.list;
 
 public class SftpClientTest {
 
@@ -39,14 +40,14 @@ public class SftpClientTest {
 
   @Rule
   public final FakeSftpServerRule sftpServer = new FakeSftpServerRule()
-      .setPort(port)
-      .addUser("user", "");
+    .setPort(port)
+    .addUser("user", "");
 
   @Before
   public void setUp() throws Exception {
     sftpServer.createDirectory("/subdir");
 
-    sftpServer.putFile("/file-in-root", content("files/file-in-root"), UTF_8);
+    sftpServer.putFile("/file-in-root", new String(content("files/file-in-root")), UTF_8);
     sftpServer.createDirectory("/list-files");
     sftpServer.createDirectory("/list-files/sublist-files");
     sftpServer.putFile("/list-files/sublist-files/first-file", "first file content", UTF_8);
@@ -218,7 +219,7 @@ public class SftpClientTest {
   @Test
   public void bulk_delete_files() throws IOException {
     sftpServer.createDirectory("/bulk-delete-dir");
-    String content = content("files/file-in-root");
+    String content = new String(content("files/file-in-root"), Charset.defaultCharset());
     for (int i = 0; i < 200; i++) {
       sftpServer.putFile("/bulk-delete-dir/file-" + i, content, UTF_8);
     }
@@ -302,7 +303,7 @@ public class SftpClientTest {
   @Test
   public void check_sftp_client_thread_safety() throws IOException {
     sftpServer.createDirectory("/sub-sub-dir");
-    String content = content("files/file-in-root");
+    String content = new String(content("files/file-in-root"));
     for (int i = 0; i < 200; i++) {
       sftpServer.putFile("/sub-sub-dir/file-" + i, content, UTF_8);
     }
@@ -372,8 +373,8 @@ public class SftpClientTest {
 
   @SneakyThrows
   // Gets file content from classpath
-  private static String content(String fileName) {
-    return new String(resource(fileName).openStream().readAllBytes());
+  private static byte[] content(String fileName) {
+    return resource(fileName).openStream().readAllBytes();
   }
 
   @SneakyThrows

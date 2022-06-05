@@ -1,13 +1,14 @@
 package org.iinegve.sftp;
 
-import static java.util.stream.Collectors.toList;
-
 import com.jcraft.jsch.ChannelSftp;
 import com.jcraft.jsch.ChannelSftp.LsEntry;
 import com.jcraft.jsch.CustomJSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 import com.jcraft.jsch.SftpException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -19,8 +20,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static java.util.stream.Collectors.toList;
 
 public class SftpClient {
 
@@ -34,7 +35,7 @@ public class SftpClient {
   private final Properties config;
   private final ThreadLocal<Session> jschSession;
 
-  private SftpClient(String host, int port, String username, String privateKey, CustomJSch jsch) {
+  SftpClient(String host, int port, String username, byte[] privateKey, CustomJSch jsch) {
     this.host = host;
     this.port = port;
     this.username = username;
@@ -263,46 +264,5 @@ public class SftpClient {
   @FunctionalInterface
   private interface ReturningFileOp<T> {
     public T process(ChannelSftp channel) throws SftpException;
-  }
-
-
-  public static final class SftpClientBuilder {
-    private String host;
-    private int port;
-    private String username;
-    private String privateKey;
-    private CustomJSch jsch;
-
-    public SftpClientBuilder host(String host) {
-      this.host = host;
-      return this;
-    }
-
-    public SftpClientBuilder port(int port) {
-      this.port = port;
-      return this;
-    }
-
-    public SftpClientBuilder username(String username) {
-      this.username = username;
-      return this;
-    }
-
-    public SftpClientBuilder privateKey(String privateKey) {
-      this.privateKey = privateKey;
-      return this;
-    }
-
-    public SftpClientBuilder jsch(CustomJSch jsch) {
-      this.jsch = jsch;
-      return this;
-    }
-
-    public SftpClient build() {
-      if (jsch == null) {
-        jsch = new CustomJSch();
-      }
-      return new SftpClient(host, port, username, privateKey, jsch);
-    }
   }
 }

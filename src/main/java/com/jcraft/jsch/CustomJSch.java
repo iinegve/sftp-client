@@ -17,12 +17,12 @@ public class CustomJSch extends JSch {
   /**
    * Adds RSA identity without having a file.
    *
-   * @param privateKey private key
+   * @param privateKey byte array that contains private key
    * @throws UncheckedJSchException in case anything happens
    */
-  public void addRsaIdentity(String privateKey) {
+  public void addRsaIdentity(byte[] privateKey) {
     try {
-      Identity identity = IdentityFile.newInstance("in-memory", privateKey.getBytes(), null, this);
+      Identity identity = IdentityFile.newInstance("in-memory", privateKey, null, this);
       addIdentity(identity, null);
     } catch (Exception ex) {
       throw new UncheckedJSchException(ex);

@@ -1,14 +1,17 @@
 package com.jcraft.jsch;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import org.junit.Test;
+
+import java.nio.charset.StandardCharsets;
 
 public class CustomJSchTest {
 
   @Test
   public void initialize_jsch__with_given_complete_private_key_file_content() {
-    assertThatCode(() -> new CustomJSch().addRsaIdentity(privateKey))
+    assertThatCode(() -> new CustomJSch().addRsaIdentity(privateKey.getBytes(UTF_8)))
         .doesNotThrowAnyException();
   }
 
